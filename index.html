@@ -37,42 +37,57 @@
         <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md alert-anim flex items-center max-w-md mx-4">
             <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
             <div>
-                <p class="font-bold">Duplicate Scan</p>
-                <p class="text-sm">You have already scanned this ticket.</p>
+                <p class="font-bold" id="alertTitle">Duplicate Scan</p>
+                <p class="text-sm" id="alertMessage">You have already scanned this ticket.</p>
             </div>
         </div>
     </div>
 
-    <div class="max-w-xl mx-auto p-4 py-8">
+    <!-- NEW: Top Right Controls (Hidden by default) -->
+    <div class="fixed top-4 right-4 z-40 flex flex-col items-end">
+        <!-- Toggle Button -->
+        <button id="togglePanelBtn" class="bg-white p-3 rounded-full shadow-lg text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-all border border-gray-200" title="USB Scanner & Settings">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        </button>
+
+        <!-- Hidden Panel -->
+        <div id="usbPanel" class="hidden mt-3 w-[calc(100vw-2rem)] max-w-sm bg-white rounded-2xl shadow-2xl border border-gray-200 p-5 transform transition-all origin-top-right">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b">
+                <h2 class="text-sm font-bold text-gray-800">USB Scanner & Extra Data</h2>
+                <button id="closePanelBtn" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Column D Name</label>
+                        <input type="text" id="inputColD" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="Enter name...">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Column E Name</label>
+                        <input type="text" id="inputColE" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="Enter name...">
+                    </div>
+                </div>
+                
+                <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                    <label class="block text-xs font-bold text-blue-800 mb-2">USB Scanner Input</label>
+                    <div class="flex shadow-sm">
+                        <input type="text" id="usbInput" class="w-full border border-gray-300 rounded-l-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Scan here...">
+                        <button id="manualSubmitBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 text-sm rounded-r-lg font-medium transition-colors">Submit</button>
+                    </div>
+                    <p class="text-[10px] text-blue-600 mt-2 leading-tight">Click inside this box before using your physical USB scanner.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-xl mx-auto p-4 py-8 mt-4 md:mt-0">
         <!-- Header -->
         <div class="text-center mb-6">
             <h1 class="text-3xl font-bold text-blue-700 mb-2">Lottery Scanner</h1>
             <p class="text-sm text-gray-500">Scan QR or upload image to save to Google Sheets</p>
-        </div>
-
-        <!-- Custom Data Inputs for Column D and E -->
-        <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
-            <h2 class="text-sm font-semibold text-gray-700 mb-3">Additional Data (Optional)</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Column D Name</label>
-                    <input type="text" id="inputColD" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="Enter name...">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Column E Name</label>
-                    <input type="text" id="inputColE" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="Enter name...">
-                </div>
-            </div>
-            
-            <!-- NEW: Manual / USB Scanner Input -->
-            <div class="mt-4 border-t pt-4">
-                <label class="block text-xs font-medium text-gray-500 mb-1">USB Scanner Input (Or type manually)</label>
-                <div class="flex">
-                    <input type="text" id="usbInput" class="w-full border border-gray-300 rounded-l-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="Scan with physical scanner here..." autofocus>
-                    <button id="manualSubmitBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-r-lg font-medium transition-colors">Submit</button>
-                </div>
-                <p class="text-[10px] text-gray-400 mt-1">Click inside this box before using your physical USB scanner.</p>
-            </div>
         </div>
 
         <!-- Scanner Card -->
@@ -115,10 +130,29 @@
         const scanList = document.getElementById('scanList');
         const emptyState = document.getElementById('emptyState');
         const alertContainer = document.getElementById('alertContainer');
+        const alertTitle = document.getElementById('alertTitle');
+        const alertMessage = document.getElementById('alertMessage');
         const pauseOverlay = document.getElementById('pauseOverlay');
         const scanCountEl = document.getElementById('scanCount');
         const usbInput = document.getElementById('usbInput');
         const manualSubmitBtn = document.getElementById('manualSubmitBtn');
+        
+        // New Panel Toggles
+        const togglePanelBtn = document.getElementById('togglePanelBtn');
+        const closePanelBtn = document.getElementById('closePanelBtn');
+        const usbPanel = document.getElementById('usbPanel');
+        
+        togglePanelBtn.addEventListener('click', () => {
+            usbPanel.classList.toggle('hidden');
+            // Automatically focus the USB input box when you open the panel
+            if(!usbPanel.classList.contains('hidden')) {
+                usbInput.focus();
+            }
+        });
+        
+        closePanelBtn.addEventListener('click', () => {
+            usbPanel.classList.add('hidden');
+        });
         
         const scannedCodes = new Set(); 
         let html5QrcodeScanner;
@@ -177,6 +211,10 @@
 
                 if (result.status === 'success') {
                     statusElement.innerHTML = '<span class="text-green-500 font-medium">Saved ✓</span>';
+                } else if (result.status === 'duplicate') {
+                    // This happens if Google Sheets says it already exists!
+                    statusElement.innerHTML = `<span class="text-red-600 font-bold">Already Scanned!</span>`;
+                    showAlert(); // Show the big red banner
                 } else {
                     statusElement.innerHTML = `<span class="text-red-500 font-medium">Error</span>`;
                 }

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -223,7 +223,10 @@
                 qrbox: {width: 250, height: 250},
                 rememberLastUsedCamera: true,
                 supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA, Html5QrcodeScanType.SCAN_TYPE_FILE],
-                formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ] // ONLY scan QR Codes (skips barcodes, speeds up detection)
+                formatsToSupport: [ 
+                    Html5QrcodeSupportedFormats.QR_CODE,
+                    Html5QrcodeSupportedFormats.DATA_MATRIX // Added DATA_MATRIX for Thai Lottery tickets!
+                ] 
             },
             false
         );
@@ -231,4 +234,4 @@
         html5QrcodeScanner.render(onScanSuccess, onScanFailure);
     </script>
 </body>
-</html>
+</html>       

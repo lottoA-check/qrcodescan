@@ -63,6 +63,16 @@
                     <input type="text" id="inputColE" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="Enter name...">
                 </div>
             </div>
+            
+            <!-- NEW: Manual / USB Scanner Input -->
+            <div class="mt-4 border-t pt-4">
+                <label class="block text-xs font-medium text-gray-500 mb-1">USB Scanner Input (Or type manually)</label>
+                <div class="flex">
+                    <input type="text" id="usbInput" class="w-full border border-gray-300 rounded-l-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="Scan with physical scanner here..." autofocus>
+                    <button id="manualSubmitBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-r-lg font-medium transition-colors">Submit</button>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-1">Click inside this box before using your physical USB scanner.</p>
+            </div>
         </div>
 
         <!-- Scanner Card -->
@@ -107,6 +117,8 @@
         const alertContainer = document.getElementById('alertContainer');
         const pauseOverlay = document.getElementById('pauseOverlay');
         const scanCountEl = document.getElementById('scanCount');
+        const usbInput = document.getElementById('usbInput');
+        const manualSubmitBtn = document.getElementById('manualSubmitBtn');
         
         const scannedCodes = new Set(); 
         let html5QrcodeScanner;
@@ -235,6 +247,45 @@
         function onScanFailure(error) {
             // Ignore continuous failures
         }
+
+        // ==========================================
+        // NEW: Handle Physical USB Scanner Input
+        // ==========================================
+        function processUSBScan() {
+            const scannedText = usbInput.value.trim();
+            
+            if (scannedText === "") return; // Don't submit empty strings
+
+            // Call the same success function the camera uses
+            onScanSuccess(scannedText, null);
+            
+            // Clear the input box so it is ready for the next scan
+            usbInput.value = "";
+            // Keep focus on the input box so you can scan rapidly
+            usbInput.focus();
+        }
+
+        // USB Scanners automatically press "Enter" when they finish reading a code.
+        usbInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Stop page from refreshing
+                processUSBScan();
+            }
+        });
+
+        // Allow clicking the submit button for manual typing
+        manualSubmitBtn.addEventListener('click', processUSBScan);
+
+        // Keep focus on the USB input box when clicking anywhere else on the background
+        // (Helps prevent missing scans if you accidentally click away)
+        document.addEventListener('click', (e) => {
+             // Don't steal focus if user is typing in Column D or E
+            if(e.target.id !== 'inputColD' && e.target.id !== 'inputColE' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A') {
+                // Uncomment the line below if you want aggressive refocusing on the USB input
+                // usbInput.focus(); 
+            }
+        });
+
 
         // Initialize Scanner
         html5QrcodeScanner = new Html5QrcodeScanner(

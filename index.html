@@ -13,9 +13,16 @@
         #reader button:hover { background-color: #2563eb; }
         #reader a { display: none; } /* Hide the default powered by link */
         #reader__dashboard_section_csr span { font-family: ui-sans-serif, system-ui, sans-serif; margin-bottom: 10px; display: block; }
+        
+        /* Alert Animation */
+        @keyframes slideDown {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .alert-anim { animation: slideDown 0.3s ease-out forwards; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen font-sans text-gray-800">
+<body class="bg-gray-100 min-h-screen font-sans text-gray-800 relative">
 
     <script>
         // =========================================================================
@@ -25,6 +32,17 @@
         // Example: "https://script.google.com/macros/s/AKfycb.../exec"
     </script>
 
+    <!-- Floating Alert Container -->
+    <div id="alertContainer" class="fixed top-4 left-0 right-0 z-50 flex justify-center hidden">
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md alert-anim flex items-center max-w-md mx-4">
+            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <div>
+                <p class="font-bold">Duplicate Scan</p>
+                <p class="text-sm">You have already scanned this ticket.</p>
+            </div>
+        </div>
+    </div>
+
     <div class="max-w-xl mx-auto p-4 py-8">
         <!-- Header -->
         <div class="text-center mb-6">
@@ -33,13 +51,21 @@
         </div>
 
         <!-- Scanner Card -->
-        <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
+        <div class="bg-white rounded-2xl shadow-lg p-4 mb-6 relative">
+             <!-- Scanning Overlay -->
+             <div id="pauseOverlay" class="absolute inset-0 bg-white/80 z-10 flex flex-col items-center justify-center rounded-2xl hidden backdrop-blur-sm">
+                <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                <p class="text-blue-800 font-semibold">Processing...</p>
+            </div>
             <div id="reader" class="w-full"></div>
         </div>
 
         <!-- Scan Results -->
         <div class="bg-white rounded-2xl shadow-lg p-4">
-            <h2 class="text-lg font-semibold border-b pb-2 mb-3">Recent Scans</h2>
+            <div class="flex justify-between items-center border-b pb-2 mb-3">
+                <h2 class="text-lg font-semibold">Recent Scans</h2>
+                <span id="scanCount" class="text-sm bg-blue-100 text-blue-800 py-1 px-2 rounded-full font-medium">0</span>
+            </div>
             
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm" id="resultsTable">
@@ -63,23 +89,45 @@
     <script>
         const scanList = document.getElementById('scanList');
         const emptyState = document.getElementById('emptyState');
-        const scannedCodes = new Set(); // Prevent duplicate rapid scans
-        let lastScanTime = 0;
+        const alertContainer = document.getElementById('alertContainer');
+        const pauseOverlay = document.getElementById('pauseOverlay');
+        const scanCountEl = document.getElementById('scanCount');
+        
+        const scannedCodes = new Set(); 
+        let html5QrcodeScanner;
 
-        // Audio Beep for successful scan feedback
-        function playBeep() {
+        // Audio Beeps
+        function playBeep(type = 'success') {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
                 const osc = ctx.createOscillator();
                 const gainNode = ctx.createGain();
                 osc.connect(gainNode);
                 gainNode.connect(ctx.destination);
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(1000, ctx.currentTime);
+                
+                if (type === 'error') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(300, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.3);
+                } else {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1000, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+                }
+                
                 gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (type === 'error' ? 0.3 : 0.1));
                 osc.start();
-                osc.stop(ctx.currentTime + 0.1);
+                osc.stop(ctx.currentTime + (type === 'error' ? 0.3 : 0.1));
             } catch(e) { console.log("Audio not supported"); }
+        }
+
+        function showAlert() {
+            alertContainer.classList.remove('hidden');
+            playBeep('error');
+            setTimeout(() => {
+                alertContainer.classList.add('hidden');
+            }, 3000);
         }
 
         async function saveToGoogleSheets(qrData, rowId) {
@@ -87,12 +135,10 @@
             
             if(GAS_URL === "YOUR_WEB_APP_URL_HERE") {
                 statusElement.innerHTML = '<span class="text-orange-500 font-medium">Setup Needed</span>';
-                alert("Please add your Google Apps Script Web App URL in the index.html file.");
                 return;
             }
 
             try {
-                // Using GET request to avoid complex CORS preflight issues
                 const response = await fetch(`${GAS_URL}?qrData=${encodeURIComponent(qrData)}`);
                 const result = await response.json();
 
@@ -100,58 +146,77 @@
                     statusElement.innerHTML = '<span class="text-green-500 font-medium">Saved ✓</span>';
                 } else {
                     statusElement.innerHTML = `<span class="text-red-500 font-medium">Error</span>`;
-                    console.error("Sheet Error:", result.message);
                 }
             } catch (error) {
                 statusElement.innerHTML = '<span class="text-red-500 font-medium">Failed</span>';
-                console.error("Fetch Error:", error);
             }
         }
 
         function onScanSuccess(decodedText, decodedResult) {
-            const now = Date.now();
-            
-            // Prevent duplicate scans within 3 seconds
-            if (scannedCodes.has(decodedText) && (now - lastScanTime) < 3000) {
+            // 1. Check for Duplicates
+            if (scannedCodes.has(decodedText)) {
+                // If it's a file upload, scanner automatically pauses. If camera, it keeps going.
+                // We show an alert so they know they scanned it already.
+                showAlert();
+                
+                // Briefly pause the scanner so it doesn't spam the error sound
+                if(html5QrcodeScanner && html5QrcodeScanner.getState() === 2 /* SCANNING */) {
+                    html5QrcodeScanner.pause();
+                    setTimeout(() => { html5QrcodeScanner.resume(); }, 2000);
+                }
                 return;
             }
 
-            // Acknowledge new scan
-            playBeep();
+            // 2. New Scan! Pause scanner and show overlay
+            playBeep('success');
+            if(html5QrcodeScanner && html5QrcodeScanner.getState() === 2) {
+                html5QrcodeScanner.pause();
+            }
+            pauseOverlay.classList.remove('hidden');
+            
+            // 3. Add to tracking
             scannedCodes.add(decodedText);
-            lastScanTime = now;
+            scanCountEl.innerText = scannedCodes.size;
             emptyState.style.display = 'none';
 
-            // Generate unique ID for this row
+            // 4. Generate unique ID and add to UI
             const rowId = Math.random().toString(36).substr(2, 9);
-
-            // Add to UI Table immediately
             const newRow = document.createElement('tr');
+            newRow.classList.add('bg-green-50', 'transition-colors', 'duration-500'); // Highlight new row
             newRow.innerHTML = `
-                <td class="py-3 font-mono text-xs md:text-sm text-blue-900 break-all pr-2">${decodedText}</td>
-                <td class="py-3 text-right" id="status-${rowId}">
+                <td class="py-3 font-mono text-xs md:text-sm text-blue-900 break-all pr-2 pl-2">${decodedText}</td>
+                <td class="py-3 text-right pr-2" id="status-${rowId}">
                     <span class="text-gray-400 animate-pulse text-xs">Saving...</span>
                 </td>
             `;
             
-            // Insert at top of list
             if (scanList.firstChild) {
                 scanList.insertBefore(newRow, scanList.firstChild);
             } else {
                 scanList.appendChild(newRow);
             }
 
-            // Fire and forget save to Google Sheets
+            // Remove highlight after a moment
+            setTimeout(() => { newRow.classList.remove('bg-green-50'); }, 1500);
+
+            // 5. Fire save to Google Sheets
             saveToGoogleSheets(decodedText, rowId);
+
+            // 6. Resume scanning after a brief delay
+            setTimeout(() => {
+                pauseOverlay.classList.add('hidden');
+                if(html5QrcodeScanner && html5QrcodeScanner.getState() === 3 /* PAUSED */) {
+                    html5QrcodeScanner.resume();
+                }
+            }, 1500); // 1.5 second pause between scans
         }
 
         function onScanFailure(error) {
-            // html5-qrcode logs failures constantly while searching for a code. 
-            // We safely ignore this to keep the console clean.
+            // Ignore continuous failures
         }
 
         // Initialize Scanner
-        let html5QrcodeScanner = new Html5QrcodeScanner(
+        html5QrcodeScanner = new Html5QrcodeScanner(
             "reader",
             { 
                 fps: 10, 
@@ -159,7 +224,7 @@
                 rememberLastUsedCamera: true,
                 supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA, Html5QrcodeScanType.SCAN_TYPE_FILE]
             },
-            /* verbose= */ false
+            false
         );
         
         html5QrcodeScanner.render(onScanSuccess, onScanFailure);
